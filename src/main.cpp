@@ -7,6 +7,62 @@ FASTLED_USING_NAMESPACE
 #define COLOR_ORDER GBR
 #define NUM_LEDS 168
 
+int changePatternDelay = 30;
+
+char strftime_buf[64];
+struct tm timeinfo;
+
+
+// #include <WiFi.h>
+
+// const char* ssid1 = "";
+// const char* password1 = "";
+
+// const char* ssid2 = "";
+// const char* password2 = ";
+
+// const int connectionAttempts = 100;
+// const int connectionDelay = 1000;
+
+// void connectToWiFi() {
+//     Serial.begin(9600);
+//     delay(connectionDelay);
+
+//     Serial.print("Connecting to WiFi: ");
+//     Serial.println(ssid1);
+//     WiFi.begin(ssid1, password1);
+
+//     int attempt = 0;
+//     while (WiFi.status() != WL_CONNECTED && attempt < connectionAttempts) {
+//         delay(connectionDelay);
+//         Serial.print(".");
+//         attempt++;
+//     }
+
+//     if (WiFi.status() != WL_CONNECTED) {
+//         Serial.println("\nFailed to connect to Eeyore, trying FreeCandy");
+//         WiFi.begin(ssid2, password2);
+//         attempt = 0;
+//         while (WiFi.status() != WL_CONNECTED && attempt < connectionAttempts) {
+//             delay(connectionDelay);
+//             Serial.print(".");
+//             attempt++;
+//         }
+//     }
+
+//     if (WiFi.status() == WL_CONNECTED) {
+//         Serial.println("\nConnected to FreeCandy");
+//         Serial.print("IP Address: ");
+//         Serial.println(WiFi.localIP());
+//     } else {
+//         Serial.println("\nFailed to connect to any WiFi network");
+//     }
+// }
+
+// void setupWiFi() {
+//     connectToWiFi();
+// }
+
 
 CRGB leds[NUM_LEDS];
 
@@ -25,12 +81,27 @@ void setup()
     // FastLED.addLeds<LED_TYPE, GPIO_NUM_18, GPIO_NUM_5, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
     FastLED.addLeds<LED_TYPE, GPIO_NUM_18, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
     FastLED.setBrightness(BRIGHTNESS);
+
+    // xTaskCreatePinnedToCore(
+    //     [](void* pvParameters) {
+    //         setupWiFi();
+    //         vTaskDelete(NULL);
+    //     },
+    //     "WiFiSetupTask",
+    //     4096,
+    //     NULL,
+    //     1,
+    //     NULL,
+    //     1
+    // );
+    setenv("TZ", "UTC-8", 1);
+    tzset();
 }
 
 void rainbow()
 {
     // FastLED's built-in rainbow generator
-    fill_rainbow(leds, NUM_LEDS, gHue, 7);
+    fill_rainbow(leds, NUM_LEDS, gHue, 25);
 }
 
 void addGlitter(fract8 chanceOfGlitter)
@@ -52,8 +123,9 @@ void confetti()
 void sinelon()
 {
     // a colored dot sweeping back and forth, with fading trails
-    fadeToBlackBy(leds, NUM_LEDS, 20);
-    int pos = beatsin16(13, 0, NUM_LEDS - 1);
+    fadeToBlackBy(leds, NUM_LEDS, 1);
+    int pos = beatsin16(2, 0, NUM_LEDS - 1);
+    // int pos = beatsin16(2, 0, NUM_LEDS - 1, -1, gHue);
     leds[pos] += CHSV(gHue, 255, 192);
 }
 
@@ -89,12 +161,26 @@ void rainbowWithGlitter()
 }
 
 // // List of patterns to cycle through.  Each is defined as a separate function below.
-SimplePatternList gPatterns = {rainbow, rainbowWithGlitter, confetti, sinelon, juggle, bpm};
+SimplePatternList gPatterns = {
+    rainbow,
+    rainbowWithGlitter, 
+    sinelon,
+    juggle,
+    bpm
+    };
 
 void nextPattern()
 {
     // add one to the current pattern number, and wrap around at the end
     gCurrentPatternNumber = (gCurrentPatternNumber + 1) % ARRAY_SIZE(gPatterns);
+}
+
+void printTime() {
+    time_t now;
+    time(&now);
+    localtime_r(&now, &timeinfo);
+    strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+    Serial.println(strftime_buf);
 }
 
 void loop()
@@ -108,6 +194,13 @@ void loop()
     FastLED.delay(1000 / FRAMES_PER_SECOND);
 
     // do some periodic updates
-    EVERY_N_MILLISECONDS(20) { gHue++; }  // slowly cycle the "base color" through the rainbow
-    EVERY_N_SECONDS(3) { nextPattern(); } // change patterns periodically
+    // 20 for later
+    // Serial.println(gHue);
+    EVERY_N_MILLISECONDS(3) { gHue++; }  // slowly cycle the "base color" through the rainbow
+    EVERY_N_SECONDS(changePatternDelay) { nextPattern(); } // change patterns periodically
+    EVERY_N_SECONDS(1) { printTime(); }
+
+
+
+
 }
